@@ -26,7 +26,7 @@ object Puzzle {
 
 }
 
-trait PuzzleLowPriorityInstances {
+trait PuzzleDefaultInstances {
 
   implicit def puzzleForAny[F[_], A](implicit
     F: Sync[F]
@@ -44,7 +44,7 @@ trait PuzzleLowPriorityInstances {
 
 }
 
-trait PuzzleInstances extends PuzzleLowPriorityInstances {
+trait PuzzleHListInstances extends PuzzleDefaultInstances {
 
   implicit def puzzleForHNil[F[_]](implicit
     F: Sync[F]
@@ -87,7 +87,7 @@ trait PuzzleInstances extends PuzzleLowPriorityInstances {
 
   }
 
-  implicit def puzzleForGeneric[F[_], A, ReprOfA <: HList, PiecesOfReprOfA <: HList](implicit
+  implicit def puzzleForHList[F[_], A, ReprOfA <: HList, PiecesOfReprOfA <: HList](implicit
     F: Sync[F],
     labelledGeneric: LabelledGeneric.Aux[A, ReprOfA],
     puzzleForReprOfA: Puzzle.Aux[F, ReprOfA, PiecesOfReprOfA]
@@ -106,3 +106,9 @@ trait PuzzleInstances extends PuzzleLowPriorityInstances {
   }
 
 }
+
+trait PuzzleCoproductInstances extends PuzzleHListInstances {
+
+}
+
+trait PuzzleInstances extends PuzzleCoproductInstances

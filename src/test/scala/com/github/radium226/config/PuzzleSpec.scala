@@ -9,27 +9,28 @@ import shapeless.syntax.singleton._
 
 class PuzzleSpec extends AbstractSpec {
 
-  case class Settings(minSize: Int, maxSize: Int)
+  case class Simple(minSize: Int, maxSize: Int)
 
-  val puzzle  = Puzzle[IO, Settings]
+  val simplePuzzle  = Puzzle[IO, Simple]
 
+  type SimplePieces = simplePuzzle.Pieces
 
-  it should "be able to shuffle settings" in {
-    val settings = Settings(2, 4)
+  it should "be able to shuffle simple case class" in {
+    val simple = Simple(2, 4)
     val piecesOfSettings = Symbol("minSize") ->> 2.some :: Symbol("maxSize") ->> 4.some ::HNil
-    puzzle.shuffle(settings).unsafeRunSync() should be(piecesOfSettings)
+    simplePuzzle.shuffle(simple).unsafeRunSync() should be(piecesOfSettings)
   }
 
   it should "not be able to assemble settings if pieces are missing" in {
-    val piecesOfSettings = (Symbol("minSize") ->> 2.some :: Symbol("maxSize") ->> none ::HNil).asInstanceOf[puzzle.Pieces]
+    val simplePieces = (Symbol("minSize") ->> 2.some :: Symbol("maxSize") ->> none ::HNil).asInstanceOf[SimplePieces]
     an[Exception] should be thrownBy {
-      puzzle.assemble(piecesOfSettings).unsafeRunSync()
+      simplePuzzle.assemble(simplePieces).unsafeRunSync()
     }
   }
 
   it should "be able to assemble settings if all pieces are here" in {
-    val piecesOfSettings = (Symbol("minSize") ->> 2.some :: Symbol("maxSize") ->> 3.some ::HNil).asInstanceOf[puzzle.Pieces]
-    puzzle.assemble(piecesOfSettings).unsafeRunSync() should be(Settings(2, 3))
+    val piecesOfSettings = (Symbol("minSize") ->> 2.some :: Symbol("maxSize") ->> 3.some ::HNil).asInstanceOf[SimplePieces]
+    simplePuzzle.assemble(piecesOfSettings).unsafeRunSync() should be(Simple(2, 3))
   }
 
 }

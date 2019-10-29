@@ -5,7 +5,6 @@ import pureconfig.ConfigSource
 
 class ConfigReaderSpec extends AbstractSpec {
 
-
   case class Settings(minSize: Int, maxSize: Option[Int])
 
   it should "be able to parse option" in {
@@ -13,7 +12,7 @@ class ConfigReaderSpec extends AbstractSpec {
   }
 
 
-  sealed trait Action
+  /*sealed trait Action
   case class Create(name: String) extends Action
   case class Delete(id: Int) extends Action
 
@@ -24,6 +23,6 @@ class ConfigReaderSpec extends AbstractSpec {
         |""".stripMargin
     ).loadOrThrow[Create]
 
-  }
+  }*/
 
 }

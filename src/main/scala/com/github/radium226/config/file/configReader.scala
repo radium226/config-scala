@@ -9,40 +9,10 @@ import com.github.radium226.config.{Behaviors, Piece}
 import pureconfig.error.{ConfigReaderFailure, ConfigReaderFailures, ConfigValueLocation}
 
 import scala.reflect.ClassTag
-
 import com.github.radium226.config.debug
+import pureconfig.ConfigReader.Result
 
-
-trait ConfigReaderCoproductInstances {
-
-  case object CNilConfigReaderFailure extends ConfigReaderFailure {
-
-    override def description: String = "CNil"
-
-    override def location: Option[ConfigValueLocation] = None
-  }
-
-  implicit def configReaderForGenericOfCoproduct[A, ReprOfA <: Coproduct](implicit
-    generic: Generic.Aux[A, ReprOfA],
-    configReaderForReprOfA: ConfigReader[ReprOfA]
-  ): ConfigReader[A] = configReaderForReprOfA.map(generic.from(_))
-
-  implicit def configReaderForCNil: ConfigReader[CNil] = ConfigReader.fromCursor(_ => ConfigReaderFailures(CNilConfigReaderFailure).asLeft[CNil])
-
-  implicit def configReaderForCCons[H, T <: Coproduct](implicit
-    configReaderForH: ConfigReader[H],
-    configReaderForT: ConfigReader[T],
-    classTagForH: ClassTag[H],
-    behaviors: Behaviors
-  ): ConfigReader[H :+: T] = {
-    debug(s"configReaderForCCons[${classTagForH.runtimeClass.getSimpleName}, ...]")
-
-    ???
-  }
-
-}
-
-trait LowPriorityConfigReaderInstances {
+trait ConfigReaderHListInstances {
 
   implicit def configReaderForHNil: ConfigReader[HNil] = {
     ConfigReader.fromCursor(_ => HNil.asRight)
@@ -72,11 +42,9 @@ trait LowPriorityConfigReaderInstances {
     configReaderForReprOfA: ConfigReader[ReprOfA]
   ): ConfigReader[A] = configReaderForReprOfA.map(labelledGeneric.from(_))
 
-
-
 }
 
-trait ConfigReaderInstances extends ConfigReaderCoproductInstances with LowPriorityConfigReaderInstances {
+trait ConfigReaderPieceInstances extends ConfigReaderHListInstances {
 
   implicit def configReaderForPieceHCons[K <: Symbol, H, T <: HList](implicit
     configReaderForH: ConfigReader[H],
@@ -97,3 +65,5 @@ trait ConfigReaderInstances extends ConfigReaderCoproductInstances with LowPrior
   }
 
 }
+
+trait ConfigReaderInstances extends ConfigReaderPieceInstances

@@ -35,7 +35,7 @@ class ConfigSpec extends AbstractSpec {
   }
 
 
-  sealed trait Action
+  /*sealed trait Action
   case class Create() extends Action
 
   case class SettingsWithAction(dryRun: String, action: Action)
@@ -43,6 +43,6 @@ class ConfigSpec extends AbstractSpec {
   it should "be able to parse settings with action" in {
     val settings = Config[IO, SettingsWithAction].parse("--dry-run", "create").unsafeRunSync()
     println(settings)
-  }
+  }*/
 
 }
