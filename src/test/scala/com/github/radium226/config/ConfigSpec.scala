@@ -35,7 +35,8 @@ class ConfigSpec extends AbstractSpec {
   }
 
 
-  /*sealed trait Action
+  /* FIXME
+  sealed trait Action
   case class Create() extends Action
 
   case class SettingsWithAction(dryRun: String, action: Action)
