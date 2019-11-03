@@ -5,7 +5,7 @@ import file.File
 import arguments.Arguments
 import cats.kernel.Monoid
 import cats.implicits._
-
+import pureconfig.ConfigSource
 import shapeless.HList
 
 
@@ -34,7 +34,7 @@ trait ConfigInstances {
       for {
         contents               <- Scope.values.toList.traverse(behaviors.readContent[F]("", "", _))
         piecesOfAFromFiles     <- contents.traverse(file.parse(_))
-        piecesOfAFromArguments <- arguments.parse(parameters: _*)
+        piecesOfAFromArguments <- arguments.parse(ConfigSource.empty, parameters: _*)
         piecesOfA               = (piecesOfAFromArguments +: piecesOfAFromFiles).combineAll
         a                      <- puzzleForA.assemble(piecesOfA)
       } yield a

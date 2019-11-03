@@ -5,23 +5,15 @@ import shapeless._
 import com.monovore.decline._
 
 import scala.reflect._
-
 import cats.implicits._
-
 import com.github.radium226.config.Behaviors
-
 import com.github.radium226.config.debug
+import pureconfig.ConfigSource
 
 
 trait MakeSubcommand[A] {
 
-  def apply(): Opts[A]
-
-  def instance[A](f: => Opts[A]): MakeSubcommand.Aux[A] = new MakeSubcommand[A] {
-
-    def apply() = f
-
-  }
+  def apply(configSource: ConfigSource): Opts[A]
 
 }
 
@@ -29,13 +21,13 @@ object MakeSubcommand {
 
   type Aux[A] = MakeSubcommand[A]
 
-  def instance[A](f: => Opts[A]): MakeSubcommand.Aux[A] = new MakeSubcommand[A] {
+  def instance[A](f: ConfigSource => Opts[A]): MakeSubcommand.Aux[A] = new MakeSubcommand[A] {
 
-    def apply(): Opts[A] = f
+    def apply(configSource: ConfigSource): Opts[A] = f(configSource)
 
   }
 
-  def constant[A](a: Opts[A]): MakeSubcommand.Aux[A] = MakeSubcommand.instance(a)
+  def constant[A](a: Opts[A]): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ _ => a })
 
 }
 
@@ -45,9 +37,9 @@ trait MakeSubcommandLowPriorityInstances {
     makeOptionForA: Lazy[MakeOption[A]],
     classTagForA: ClassTag[A],
     behavior: Behaviors
-  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({
+  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ configSource =>
     val name = behavior.inferSubcommandName(classTagForA.runtimeClass)
-    val opts = makeOptionForA.value()
+    val opts = makeOptionForA.value(configSource)
     Opts.subcommand[A](name, "No help! ")(opts)
   })
 
@@ -61,10 +53,10 @@ trait MakeSubcommandInstances extends MakeSubcommandLowPriorityInstances {
     makeSubcommandForH: MakeSubcommand.Aux[H],
     makeSubcommandForT: MakeSubcommand.Aux[T],
     classTagForH: ClassTag[H]
-  ): MakeSubcommand.Aux[H :+: T] = MakeSubcommand.instance({
+  ): MakeSubcommand.Aux[H :+: T] = MakeSubcommand.instance({ configSource =>
     debug(s"makeSubcommandForCCons[${classTagForH.runtimeClass.getSimpleName}, ...]")
-    val optsForH = makeSubcommandForH()
-    val optsForT = makeSubcommandForT()
+    val optsForH = makeSubcommandForH(configSource)
+    val optsForT = makeSubcommandForT(configSource)
     optsForH.map(Coproduct(_)).orElse(optsForT.map(Coproduct(_)))
       .map(_.asInstanceOf[H :+: T])
   })
@@ -73,9 +65,9 @@ trait MakeSubcommandInstances extends MakeSubcommandLowPriorityInstances {
     generic: Generic.Aux[A, ReprOfA],
     makeSubcommandForReprOfA: MakeSubcommand[ReprOfA],
     classTagForA: ClassTag[A]
-  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({
+  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ configSource =>
     debug(s"makeSubcommandForGeneric[${classTagForA.runtimeClass.getSimpleName}, ...]")
-    makeSubcommandForReprOfA()
+    makeSubcommandForReprOfA(configSource)
         .map(generic.from(_))
   })
 
@@ -83,6 +75,8 @@ trait MakeSubcommandInstances extends MakeSubcommandLowPriorityInstances {
 
 trait MakeSubcommandSyntax {
 
-  def makeSubcommand[A](implicit makeSubcommandForA: MakeSubcommand.Aux[A]): Opts[A] = makeSubcommandForA()
+  def makeSubcommand[A](configSource: ConfigSource)(implicit makeSubcommandForA: MakeSubcommand.Aux[A]): Opts[A] = makeSubcommandForA(configSource)
+
+  def makeSubcommand[A](implicit makeSubcommandForA: MakeSubcommand.Aux[A]): Opts[A] = makeSubcommand(ConfigSource.empty)
 
 }

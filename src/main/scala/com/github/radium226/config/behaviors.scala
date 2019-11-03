@@ -15,6 +15,8 @@ trait Behaviors {
 
   def readContent[F[_]](application: String, module: String, scope: Scope)(implicit F: Sync[F]): F[String]
 
+  def inferConfigNamespace(key: Symbol): String
+
 }
 
 class DefaultBehaviors extends Behaviors {
@@ -25,6 +27,10 @@ class DefaultBehaviors extends Behaviors {
 
   def inferSubcommandName(runtimeClass: Class[_]): String = {
     CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_HYPHEN, runtimeClass.getSimpleName.toLowerCase)
+  }
+
+  override def inferConfigNamespace(key: Symbol): String = {
+    inferOptionName(key)
   }
 
   def readContent[F[_]](application: String, module: String, scope: Scope)(implicit F: Sync[F]): F[String] = ???
