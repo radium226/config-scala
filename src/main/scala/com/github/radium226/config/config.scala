@@ -25,17 +25,12 @@ trait ConfigInstances {
     // PiecesOfA
     puzzleForA: Puzzle.Aux[F, A, PiecesOfA],
     PiecesOfA: Monoid[PiecesOfA],
-    // Sources
-    file: File[F, PiecesOfA],
     arguments: Arguments[F, PiecesOfA]
   ): Config[F, A] = new Config[F, A] {
 
     def parse(parameters: String*): F[A] = {
       for {
-        contents               <- Scope.values.toList.traverse(behaviors.readContent[F]("", "", _))
-        piecesOfAFromFiles     <- contents.traverse(file.parse(_))
-        piecesOfAFromArguments <- arguments.parse(ConfigSource.empty, parameters: _*)
-        piecesOfA               = (piecesOfAFromArguments +: piecesOfAFromFiles).combineAll
+        piecesOfA <- arguments.parse(ConfigSource.empty, parameters: _*)
         a                      <- puzzleForA.assemble(piecesOfA)
       } yield a
     }

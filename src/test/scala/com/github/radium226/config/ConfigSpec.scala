@@ -2,6 +2,7 @@ package com.github.radium226.config
 
 import cats.effect._
 import Scope._
+import com.github.radium226.config.arguments.{Arguments, MakeOption}
 
 class ConfigSpec extends AbstractSpec {
 
@@ -35,15 +36,16 @@ class ConfigSpec extends AbstractSpec {
   }
 
 
-  /* FIXME
   sealed trait Action
-  case class Create() extends Action
+  case class Create(name: String) extends Action
+  case class Delete(id: Int) extends Action
 
   case class SettingsWithAction(dryRun: String, action: Action)
 
   it should "be able to parse settings with action" in {
-    val settings = Config[IO, SettingsWithAction].parse("--dry-run", "create").unsafeRunSync()
-    println(settings)
-  }*/
+    //println(Config[IO, SettingsWithAction].parse("--dry-run", "create").unsafeRunSync())
+    println(Config[IO, SettingsWithAction].parse("--help").unsafeRunSync())
+    println(Config[IO, SettingsWithAction].parse("create", "--help").unsafeRunSync())
+  }
 
 }

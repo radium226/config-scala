@@ -1,8 +1,13 @@
 package com.github.radium226.config.arguments
 
 import cats.effect._
+import cats.implicits._
+
 import com.github.radium226.config.{AbstractSpec, Puzzle}
 import pureconfig.ConfigSource
+
+import shapeless._
+
 
 class ArgumentsSpec extends AbstractSpec {
 
@@ -60,6 +65,17 @@ class ArgumentsSpec extends AbstractSpec {
     //println(piecesOfSettingsWithAction)
 
     println(puzzle.shuffle(SettingsWithAction(true, Create("toto"))).unsafeRunSync())
+  }
+
+  case class Update(id: Option[Int], name: Option[String])
+  case class Prune()
+
+  it should "be able to find arguments for Coproduct" in {
+    val puzzle = Puzzle[IO, Prune :+: Update :+: CNil]
+    println(Coproduct[Prune :+: Update :+: CNil](Update(2.some, "name".some)))
+    println(puzzle.shuffle(Coproduct[Prune :+: Update :+: CNil](Update(2.some, "name".some))).unsafeRunSync())
+    //val arguments = implicitly[MakeSubcommand[puzzle.Pieces]]
+    //println(arguments.apply(ConfigSource.empty))
   }
 
 }

@@ -52,14 +52,33 @@ class PuzzleSpec extends AbstractSpec {
   case class Potatoes(count: Int) extends Food
   case class Tomatoes(count: Int) extends Food
 
-  case class Pan(radius: Int, food: Food)
+  val foodPuzzle  = Puzzle[IO, Food]
+  type FoodPieces = foodPuzzle.Pieces
 
-  val panPuzzle  = Puzzle[IO, Pan]
+  it should "be able to shuffle and assemble a sealed trait" in {
+    (for {
+      piecesOfTomatoes <- foodPuzzle.shuffle(Tomatoes(666))
+      _                 = println(s"piecesOfTomatoes=${piecesOfTomatoes}")
+      tomatoes         <- foodPuzzle.assemble(piecesOfTomatoes)
+      _                 = println(s"tomatoes=${tomatoes}")
+    } yield ()).unsafeRunSync()
+  }
+
+
+  case class Pan(hot: Boolean, food: Food)
+
+  val panPuzzle = Puzzle[IO, Pan]
   type PanPieces = panPuzzle.Pieces
 
-  it should "be able to shuffle case with sealed trait" in {
-    println(panPuzzle.shuffle(Pan(1, Potatoes(666))).unsafeRunSync())
+  it should "be able to shuffle and assemble a case class having field beeing a sealed trait" in {
+    (for {
+      piecesOfPan <- panPuzzle.shuffle(Pan(true, Potatoes(42)))
+      _            = println(s"piecesOfPan=${piecesOfPan}")
+      pan         <- panPuzzle.assemble(piecesOfPan)
+      _                 = println(s"pan=${pan}")
+    } yield ()).unsafeRunSync()
   }
+
 
 
 }

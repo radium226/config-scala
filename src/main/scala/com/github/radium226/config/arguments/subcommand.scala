@@ -9,6 +9,7 @@ import cats.implicits._
 import com.github.radium226.config.Behaviors
 import com.github.radium226.config.debug
 import pureconfig.ConfigSource
+import shapeless.labelled.FieldType
 
 
 trait MakeSubcommand[A] {
@@ -31,47 +32,42 @@ object MakeSubcommand {
 
 }
 
-trait MakeSubcommandLowPriorityInstances {
+trait MakeSubcommandCoproductInstances {
 
-  implicit def makeSubcommandForAny[A](implicit
-    makeOptionForA: Lazy[MakeOption[A]],
-    classTagForA: ClassTag[A],
-    behavior: Behaviors
-  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ configSource =>
-    val name = behavior.inferSubcommandName(classTagForA.runtimeClass)
-    val opts = makeOptionForA.value(configSource)
-    Opts.subcommand[A](name, "No help! ")(opts)
-  })
+  implicit def makeSubcommandForCNil: MakeSubcommand.Aux[CNil] = MakeSubcommand.constant(Opts.never)
 
-}
-
-trait MakeSubcommandInstances extends MakeSubcommandLowPriorityInstances {
-
-  implicit def makeSubcommandForCNil[K <: Symbol]: MakeSubcommand.Aux[CNil] = MakeSubcommand.constant(Opts.never)
-
-  implicit def makeSubcommandForCCons[H, T <: Coproduct](implicit
-    makeSubcommandForH: MakeSubcommand.Aux[H],
+  implicit def makeSubcommandForCCons[K <: Symbol, H, T <: Coproduct](implicit
+    makeOptionForH: MakeOption.Aux[H],
     makeSubcommandForT: MakeSubcommand.Aux[T],
-    classTagForH: ClassTag[H]
-  ): MakeSubcommand.Aux[H :+: T] = MakeSubcommand.instance({ configSource =>
+    classTagForH: ClassTag[H],
+    witnessForK: Witness.Aux[K],
+    behavior: Behaviors,
+  ): MakeSubcommand.Aux[FieldType[K, H] :+: T] = MakeSubcommand.instance({ configSource =>
     debug(s"makeSubcommandForCCons[${classTagForH.runtimeClass.getSimpleName}, ...]")
-    val optsForH = makeSubcommandForH(configSource)
+    debug(s"k=${witnessForK.value}")
+    val optsForH = {
+      val name = behavior.inferSubcommandName(witnessForK.value)
+      val opts = makeOptionForH(configSource)
+      Opts.subcommand[H](name, "No help! ")(opts)
+    }
     val optsForT = makeSubcommandForT(configSource)
     optsForH.map(Coproduct(_)).orElse(optsForT.map(Coproduct(_)))
-      .map(_.asInstanceOf[H :+: T])
+      .map(_.asInstanceOf[FieldType[K, H] :+: T])
   })
 
   implicit def makeSubcommandForGeneric[A, ReprOfA <: Coproduct](implicit
-    generic: Generic.Aux[A, ReprOfA],
+    labelledGeneric: LabelledGeneric.Aux[A, ReprOfA],
     makeSubcommandForReprOfA: MakeSubcommand[ReprOfA],
     classTagForA: ClassTag[A]
   ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ configSource =>
     debug(s"makeSubcommandForGeneric[${classTagForA.runtimeClass.getSimpleName}, ...]")
     makeSubcommandForReprOfA(configSource)
-        .map(generic.from(_))
+     .map(labelledGeneric.from(_))
   })
 
 }
+
+trait MakeSubcommandInstances extends MakeSubcommandCoproductInstances
 
 trait MakeSubcommandSyntax {
 

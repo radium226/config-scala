@@ -3,9 +3,11 @@ package com.github.radium226.config
 import cats._
 import cats.effect._
 import cats.implicits._
-
 import shapeless._
 import shapeless.labelled._
+import shapeless.ops.coproduct.Inject
+
+import scala.reflect.ClassTag
 
 
 trait Puzzle[F[_], Finished] {
@@ -29,14 +31,19 @@ object Puzzle {
 trait PuzzleDefaultInstances {
 
   implicit def puzzleForAny[F[_], A](implicit
-    F: Sync[F]
+    F: Sync[F],
+    classTagForA: ClassTag[A]
   ): Puzzle.Aux[F, A, Piece[A]] = new Puzzle[F, A] {
 
     type Pieces = Piece[A]
 
-    def shuffle(a: A): F[Pieces] = F.pure(Piece(a))
+    def shuffle(a: A): F[Pieces] = {
+      debug(s"puzzleForAny[F[_], ${classTagForA.runtimeClass.getSimpleName}].shuffle(${a})")
+      F.pure(Piece(a))
+    }
 
     def assemble(pieces: Pieces): F[A] = {
+      debug(s"puzzleForAny[F[_], ${classTagForA.runtimeClass.getSimpleName}].assemble(${pieces})")
       pieces.map(F.pure(_)).getOrElse(F.raiseError(new Exception("There is a missing piece! ")))
     }
 
@@ -44,7 +51,97 @@ trait PuzzleDefaultInstances {
 
 }
 
-trait PuzzleHListInstances extends PuzzleDefaultInstances {
+trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
+
+  implicit def puzzleForCNil[F[_]](implicit
+    F: Sync[F]
+  ): Puzzle.Aux[F, CNil, CNil] = new Puzzle[F, CNil] {
+
+    type Pieces = CNil
+
+    def shuffle(cNil: CNil): F[Pieces] = {
+      F.raiseError(new Exception("CNil! "))
+    }
+
+    def assemble(pieces: Pieces): F[CNil] = {
+      F.raiseError(new Exception("CNil! "))
+    }
+
+  }
+
+  implicit def puzzleForCCons[F[_], K <: Symbol, H, T <: Coproduct, PiecesOfH, PiecesOfT <: Coproduct](implicit
+    F: Sync[F],
+    puzzleForH: Puzzle.Aux[F, H, PiecesOfH],
+    puzzleForT: Puzzle.Aux[F, T, PiecesOfT],
+    witnessForK: Witness.Aux[K]
+  ): Puzzle.Aux[F, FieldType[K, H] :+: T, FieldType[K, PiecesOfH] :+: PiecesOfT] = new Puzzle[F, FieldType[K, H] :+: T] {
+
+    type Pieces = FieldType[K, PiecesOfH] :+: PiecesOfT
+
+    def shuffle(finished: FieldType[K, H] :+: T): F[Pieces] = {
+      println(s" --------> k = ${witnessForK.value}")
+      finished match {
+        case Inl(h) =>
+          puzzleForH
+            .shuffle(h)
+            .map({ piecesOfH =>
+              Inl[FieldType[K, PiecesOfH], PiecesOfT](field[K](piecesOfH))
+            })
+        case Inr(t) =>
+          puzzleForT
+            .shuffle(t)
+            .map(Inr[FieldType[K, PiecesOfH], PiecesOfT](_))
+      }
+    }
+
+    def assemble(pieces: Pieces): F[FieldType[K, H] :+: T] = {
+      println(s" --------> k = ${witnessForK.value}")
+      pieces match {
+        case Inl(piecesOfH) =>
+          puzzleForH
+            .assemble(piecesOfH)
+            .map({ h =>
+              Inl[FieldType[K, H], T](field[K](h))
+            })
+        case Inr(piecesOfT) =>
+          puzzleForT
+            .assemble(piecesOfT)
+            .map(Inr[FieldType[K, H], T](_))
+      }
+    }
+
+  }
+
+  implicit def puzzleForCoproduct[F[_], A, ReprOfA <: Coproduct, PiecesOfReprOfA <: Coproduct](implicit
+    F: Sync[F],
+    classTagForA: ClassTag[A],
+    labelledGeneric: LabelledGeneric.Aux[A, ReprOfA],
+    puzzleForReprOfA: Puzzle.Aux[F, ReprOfA, PiecesOfReprOfA]
+  ): Puzzle.Aux[F, A, Piece[PiecesOfReprOfA]] = new Puzzle[F, A] {
+
+    type Pieces = Piece[PiecesOfReprOfA]
+
+    def shuffle(finished: A): F[Pieces] = {
+      puzzleForReprOfA
+        .shuffle(labelledGeneric.to(finished))
+        .map(_.some)
+    }
+
+    def assemble(pieces: Pieces): F[A] = {
+      pieces
+        .map({ piecesOfReprA =>
+          puzzleForReprOfA
+            .assemble(piecesOfReprA)
+            .map(labelledGeneric.from(_))
+        })
+        .fold(F.raiseError[A](new Exception("Unable to assemble my coproduct")))(identity)
+    }
+
+  }
+
+}
+
+trait PuzzleHListInstances extends PuzzleCoproductInstances {
 
   implicit def puzzleForHNil[F[_]](implicit
     F: Sync[F]
@@ -107,89 +204,13 @@ trait PuzzleHListInstances extends PuzzleDefaultInstances {
 
 }
 
-trait PuzzleCoproductInstances extends PuzzleHListInstances {
+trait PuzzleOptionInstances extends PuzzleHListInstances {
 
-  implicit def puzzleForCNil[F[_]](implicit
-    F: Sync[F]
-  ): Puzzle.Aux[F, CNil, CNil] = new Puzzle[F, CNil] {
-
-    type Pieces = CNil
-
-    def shuffle(cNil: CNil): F[Pieces] = {
-      F.raiseError(new Exception("CNil! "))
-    }
-
-    def assemble(pieces: Pieces): F[CNil] = {
-      F.raiseError(new Exception("CNil! "))
-    }
-
-  }
-
-  implicit def puzzleForCCons[F[_], K, H, T <: Coproduct, PiecesOfH <: Coproduct, PiecesOfT <: Coproduct](implicit
+  implicit def puzzleForOption[F[_], K <: Symbol, A](implicit
     F: Sync[F],
-    puzzleForH: Puzzle.Aux[F, H, PiecesOfH],
-    puzzleForT: Puzzle.Aux[F, T, PiecesOfT],
     witnessForK: Witness.Aux[K]
-  ): Puzzle.Aux[F, FieldType[K, H :+: T], FieldType[K, PiecesOfH :+: PiecesOfT]] = new Puzzle[F, FieldType[K, H :+: T]] {
-
-    type Pieces = FieldType[K, PiecesOfH :+: PiecesOfT]
-
-    def shuffle(finished: FieldType[K, H :+: T]): F[Pieces] = {
-      (finished.asInstanceOf[H :+: T] match {
-        case Inl(h) =>
-          puzzleForH
-            .shuffle(h)
-            .map(_.asInstanceOf[H])
-            .map({ piecesOfH =>
-              Coproduct(piecesOfH)
-            })
-        case Inr(t) =>
-          puzzleForT
-            .shuffle(t)
-            .map(_.asInstanceOf[T])
-            .map({ piecesOfT =>
-              Coproduct(piecesOfT)
-            })
-      })
-        .map(_.asInstanceOf[PiecesOfH :+: PiecesOfT])
-        .map({ pieces: (PiecesOfH :+: PiecesOfT) =>
-          field[K](pieces).asInstanceOf[FieldType[K, PiecesOfH :+: PiecesOfT]]
-        })
-    }
-
-    def assemble(pieces: Pieces): F[FieldType[K, H :+: T]] = {
-      (pieces.asInstanceOf[PiecesOfH :+: PiecesOfT] match {
-        case Inl(piecesOfH) =>
-          puzzleForH.assemble(piecesOfH).map(Coproduct(_)).map(_.asInstanceOf[H :+: T])
-        case Inr(piecesOfT) =>
-          puzzleForT.assemble(piecesOfT).map(Coproduct(_)).map(_.asInstanceOf[H :+: T])
-      }).map({ finished => field[K](finished) })
-    }
-
-  }
-
-  implicit def puzzleForCoproduct[F[_], K, A, ReprOfA <: Coproduct, PiecesOfReprOfA](implicit
-    F: Sync[F],
-    generic: Generic.Aux[A, ReprOfA],
-    //puzzleForReprOfA: Puzzle.Aux[F, FieldType[K, ReprOfA], FieldType[K, PiecesOfReprOfA]],
-    //witnessForK: Witness.Aux[K],
-  ): Puzzle.Aux[F, FieldType[K, A], FieldType[K, PiecesOfReprOfA]] = new Puzzle[F, FieldType[K, A]] {
-
-    type Pieces = FieldType[K, PiecesOfReprOfA]
-
-    def shuffle(finished: FieldType[K, A]): F[Pieces] = {
-      ??? //puzzleForReprOfA.shuffle(field[K](generic.to(finished.asInstanceOf[A])))
-    }
-
-    def assemble(pieces: Pieces): F[FieldType[K, A]] = {
-      ??? /*puzzleForReprOfA
-        .assemble(pieces)
-        .map(_.asInstanceOf[ReprOfA])
-        .map({ reprOfA => field[K](generic.from(reprOfA)) })*/
-    }
-
-  }
+  ): Puzzle.Aux[F, Option[A], Piece[Option[A]]] = puzzleForAny[F, Option[A]]
 
 }
 
-trait PuzzleInstances extends PuzzleCoproductInstances
+trait PuzzleInstances extends PuzzleOptionInstances
