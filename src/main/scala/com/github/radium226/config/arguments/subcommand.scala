@@ -8,8 +8,9 @@ import scala.reflect._
 import cats.implicits._
 import com.github.radium226.config.Behaviors
 import com.github.radium226.config.debug
+import com.typesafe.config.ConfigRenderOptions
 import pureconfig.ConfigSource
-import shapeless.labelled.FieldType
+import shapeless.labelled._
 
 
 trait MakeSubcommand[A] {
@@ -47,12 +48,17 @@ trait MakeSubcommandCoproductInstances {
     debug(s"k=${witnessForK.value}")
     val optsForH = {
       val name = behavior.inferSubcommandName(witnessForK.value)
-      val opts = makeOptionForH(configSource)
+      val opts = makeOptionForH(configSource.at(behavior.inferConfigNamespace(witnessForK.value)))
       Opts.subcommand[H](name, "No help! ")(opts)
     }
     val optsForT = makeSubcommandForT(configSource)
-    optsForH.map(Coproduct(_)).orElse(optsForT.map(Coproduct(_)))
-      .map(_.asInstanceOf[FieldType[K, H] :+: T])
+    println(s"[makeSubcommandForCCons] configSource=${configSource.value().map(_.render(ConfigRenderOptions.concise()))}")
+    optsForH
+      .map({ h => Inl[FieldType[K, H], T](field[K](h))})
+      .orElse(
+        optsForT
+          .map({ t => Inr[FieldType[K, H], T](t) })
+      )
   })
 
   implicit def makeSubcommandForGeneric[A, ReprOfA <: Coproduct](implicit

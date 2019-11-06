@@ -14,6 +14,8 @@ class ConfigSpec extends AbstractSpec {
         case System =>
           """min-size: 2
             |max-size: 2
+            |action.delete.id=2
+            |action.create.toto='kjkjf'
             |""".stripMargin
 
         case User =>
@@ -46,7 +48,7 @@ class ConfigSpec extends AbstractSpec {
   it should "be able to parse settings with action" in {
     println(Config[IO, SettingsWithAction].parse("--dry-run", "create").unsafeRunSync())
     //println(Config[IO, SettingsWithAction].parse("--help").unsafeRunSync())
-    //println(Config[IO, SettingsWithAction].parse("delete", "--help").unsafeRunSync())
+    println(Config[IO, SettingsWithAction].parse("delete").unsafeRunSync())
   }
 
 }

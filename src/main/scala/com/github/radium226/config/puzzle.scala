@@ -64,6 +64,7 @@ trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
     }
 
     def assemble(pieces: Pieces): F[CNil] = {
+      debug(s"puzzleForCNil[F[_], ...).assemble(${pieces})")
       F.raiseError(new Exception("CNil! "))
     }
 
@@ -73,7 +74,8 @@ trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
     F: Sync[F],
     puzzleForH: Puzzle.Aux[F, H, PiecesOfH],
     puzzleForT: Puzzle.Aux[F, T, PiecesOfT],
-    witnessForK: Witness.Aux[K]
+    witnessForK: Witness.Aux[K],
+    classTagForH: ClassTag[H]
   ): Puzzle.Aux[F, FieldType[K, H] :+: T, FieldType[K, PiecesOfH] :+: PiecesOfT] = new Puzzle[F, FieldType[K, H] :+: T] {
 
     type Pieces = FieldType[K, PiecesOfH] :+: PiecesOfT
@@ -95,9 +97,10 @@ trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
     }
 
     def assemble(pieces: Pieces): F[FieldType[K, H] :+: T] = {
-      println(s" --------> k = ${witnessForK.value}")
+      debug(s"puzzleForCCons[F[_], ...).assemble(${pieces}) / classTagForH=${classTagForH.runtimeClass.getSimpleName}")
       pieces match {
         case Inl(piecesOfH) =>
+          println(s"piecesOfH=${piecesOfH}")
           puzzleForH
             .assemble(piecesOfH)
             .map({ h =>
@@ -122,16 +125,18 @@ trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
     type Pieces = Piece[PiecesOfReprOfA]
 
     def shuffle(finished: A): F[Pieces] = {
+      debug(s"puzzleForCoproduct[F[_], ...].shuffle(${finished})")
       puzzleForReprOfA
         .shuffle(labelledGeneric.to(finished))
         .map(_.some)
     }
 
     def assemble(pieces: Pieces): F[A] = {
+      debug(s"puzzleForCoproduct[F[_], ...].assemble(${pieces})")
       pieces
-        .map({ piecesOfReprA =>
+        .map({ piecesOfReprOfA =>
           puzzleForReprOfA
-            .assemble(piecesOfReprA)
+            .assemble(piecesOfReprOfA)
             .map(labelledGeneric.from(_))
         })
         .fold(F.raiseError[A](new Exception("Unable to assemble my coproduct")))(identity)
@@ -155,6 +160,7 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
     }
 
     def assemble(pieces: Pieces): F[HNil] = {
+      debug(s"puzzleForHNil[F[_], ...).assemble(${pieces})")
       F.pure(HNil)
     }
 
@@ -178,6 +184,7 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
     }
 
     def assemble(pieces: Pieces): F[FieldType[K, H] :: T] = {
+      debug(s"puzzleForHCons[F[_], ...].assemble(${pieces})")
       for {
         h <- puzzleForH.assemble(pieces.head)
         t <- puzzleForT.assemble(pieces.tail)
@@ -200,6 +207,7 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
     }
 
     def assemble(pieces: Pieces): F[A] = {
+      debug(s"puzzleForHList[F[_], ...].assemble(${pieces})")
       puzzleForReprOfA.assemble(pieces).map(labelledGeneric.from(_))
     }
 
@@ -216,6 +224,7 @@ trait PuzzleOptionInstances extends PuzzleHListInstances {
     type Pieces = Piece[A]
 
     override def assemble(pieces: Pieces): F[Option[A]] = {
+      debug(s"puzzleForOption[F[_], ...].assemble(${pieces})")
       F.pure(pieces)
     }
 
