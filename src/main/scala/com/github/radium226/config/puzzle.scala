@@ -150,6 +150,7 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
     type Pieces = HNil
 
     def shuffle(HNil: HNil): F[Pieces] = {
+      debug(s"puzzleForHNil[F[_], ...].shuffle(${HNil})")
       F.pure(HNil)
     }
 
@@ -169,6 +170,7 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
     type Pieces = FieldType[K, PiecesOfH] :: PiecesOfT
 
     def shuffle(finished: FieldType[K, H] :: T): F[Pieces] = {
+      debug(s"puzzleForHCons[F[_], ...].shuffle(${finished})")
       for {
         piecesForH <- puzzleForH.shuffle(finished.head.asInstanceOf[H])
         piecesForT <- puzzleForT.shuffle(finished.tail)
@@ -193,6 +195,7 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
     type Pieces = PiecesOfReprOfA
 
     def shuffle(a: A): F[Pieces] = {
+      debug(s"puzzleForHList[F[_], ...].shuffle(${a})")
       puzzleForReprOfA.shuffle(labelledGeneric.to(a))
     }
 
@@ -206,10 +209,21 @@ trait PuzzleHListInstances extends PuzzleCoproductInstances {
 
 trait PuzzleOptionInstances extends PuzzleHListInstances {
 
-  implicit def puzzleForOption[F[_], K <: Symbol, A](implicit
+  implicit def puzzleForOption[F[_], A](implicit
     F: Sync[F],
-    witnessForK: Witness.Aux[K]
-  ): Puzzle.Aux[F, Option[A], Piece[Option[A]]] = puzzleForAny[F, Option[A]]
+  ): Puzzle.Aux[F, Option[A], Piece[A]] = new Puzzle[F, Option[A]] {
+
+    type Pieces = Piece[A]
+
+    override def assemble(pieces: Pieces): F[Option[A]] = {
+      F.pure(pieces)
+    }
+
+    override def shuffle(finished: Option[A]): F[Piece[A]] = {
+      F.pure(finished)
+    }
+
+  }
 
 }
 

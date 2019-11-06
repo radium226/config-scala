@@ -5,7 +5,8 @@ import file.File
 import arguments.Arguments
 import cats.kernel.Monoid
 import cats.implicits._
-import pureconfig.ConfigSource
+import com.typesafe.config.ConfigRenderOptions
+import pureconfig._
 import shapeless.HList
 
 
@@ -29,8 +30,11 @@ trait ConfigInstances {
   ): Config[F, A] = new Config[F, A] {
 
     def parse(parameters: String*): F[A] = {
+      val configObjectSource = Scope.values.map(behaviors.configObjectSource(_)).reduce(_.withFallback(_))
+      println(configObjectSource.value().map(_.render(ConfigRenderOptions.concise())))
       for {
-        piecesOfA <- arguments.parse(ConfigSource.empty, parameters: _*)
+        piecesOfAFromArguments <- arguments.parse(configObjectSource, parameters: _*)
+        piecesOfA               = PiecesOfA.empty.combine(piecesOfAFromArguments)
         a                      <- puzzleForA.assemble(piecesOfA)
       } yield a
     }

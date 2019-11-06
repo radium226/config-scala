@@ -6,8 +6,7 @@ import shapeless.labelled._
 
 import scala.reflect._
 import cats.implicits._
-import com.github.radium226.config.Behaviors
-import com.github.radium226.config.debug
+import com.github.radium226.config.{Behaviors, Piece, debug}
 import pureconfig.{ConfigReader, ConfigSource, Derivation}
 
 
@@ -48,7 +47,23 @@ trait MakeOptionAnyInstances extends MakeOptionSubcommandInstances {
 
 }
 
-trait MakeOptionHListInstances extends MakeOptionAnyInstances {
+trait FuckThat extends MakeOptionAnyInstances {
+
+  implicit def makeOptionForSubcommandOfAny2[K <: Symbol, A](implicit
+    makeSubcommandForA: MakeSubcommand.Aux[A],
+    witnessForK: Witness.Aux[K],
+    behaviors: Behaviors,
+    classTagForA: ClassTag[A]
+  ): MakeOption.Aux[FieldType[K, Option[A]]] = MakeOption.instance({ configSource =>
+    debug(s"makeOptionForSubcommandOfAny2[${witnessForK.value}, ${classTagForA.runtimeClass.getSimpleName}]")
+    val key = witnessForK.value
+    val namespace = behaviors.inferConfigNamespace(key)
+    makeSubcommandForA(configSource.at(namespace)).orNone.map(field[K](_))
+  })
+
+}
+
+trait MakeOptionHListInstances extends FuckThat {
 
   implicit def makeOptionForHNil: MakeOption.Aux[HNil] = MakeOption.constant(Opts.unit.as(HNil))
 
@@ -75,9 +90,9 @@ trait MakeOptionHListInstances extends MakeOptionAnyInstances {
     val key = witnessForK.value
     val namespace = behaviors.inferConfigNamespace(key)
     makeOptionForA(configSource)
-      .map(_.some)
-      .orElse(configSource.at(namespace).load[Option[A]].map(Opts(_)).getOrElse(Opts(none[A])))
-      .map(field[K](_))
+        .map(_.some)
+        .orElse(configSource.at(namespace).load[Option[A]].map(Opts(_)).getOrElse(Opts(none[A])))
+        .map(field[K](_))
   })
 
   implicit def makeOptionForBoolean[K <: Symbol](implicit
@@ -93,7 +108,21 @@ trait MakeOptionHListInstances extends MakeOptionAnyInstances {
 
 }
 
-trait MakeOptionInstances extends MakeOptionHListInstances
+trait MakeOptionInstances extends MakeOptionHListInstances {
+
+  /*implicit def makeOptionForSubcommandAndOptionOfAny[K <: Symbol, A](implicit
+    makeSubcommandForA: MakeSubcommand.Aux[A],
+    witnessForK: Witness.Aux[K],
+    behaviors: Behaviors,
+    classTagForA: ClassTag[A]
+  ): MakeOption.Aux[FieldType[K, Option[A]]] = MakeOption.instance({ configSource =>
+    debug(s"makeOptionForSubcommandAndOptionOfAny[${witnessForK.value}, ${classTagForA.runtimeClass.getSimpleName}]")
+    val key = witnessForK.value
+    val namespace = behaviors.inferConfigNamespace(key)
+    makeSubcommandForA(configSource.at(namespace)).map(_.some).map(field[K](_))
+  })*/
+
+}
 
 trait MakeOptionSyntax {
 

@@ -80,5 +80,42 @@ class PuzzleSpec extends AbstractSpec {
   }
 
 
+  trait DescribePieces[A] {
+
+    def apply(): String
+
+  }
+
+  object DescribePieces {
+
+    implicit def default[A, PiecesOfA](implicit
+      puzzleForA: Puzzle.Aux[IO, A, PiecesOfA],
+      //typeableForPiecesOfA: Typeable[PiecesOfA]
+    ): DescribePieces[A] = new DescribePieces[A] {
+
+      def apply(): String = {
+        ???
+        //typeableForPiecesOfA.describe
+      }
+
+    }
+
+    def apply[A](implicit describePiecesForA: DescribePieces[A]): String = describePiecesForA()
+
+  }
+
+
+
+  sealed trait Action
+  case class Create(name: String, force: Option[Boolean]) extends Action
+  case class Delete(id: Int) extends Action
+
+  case class Hard(minSize: Int, maxSize: Option[Int], action: Action)
+
+  it should "be able to shuffle pieces of hard case class instances" in {
+    val puzzle = Puzzle[IO, Hard]
+
+    println(puzzle.shuffle(Hard(2, 2.some, Create("2", true.some))).unsafeRunSync())
+  }
 
 }
