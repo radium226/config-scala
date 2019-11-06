@@ -81,7 +81,7 @@ trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
     type Pieces = FieldType[K, PiecesOfH] :+: PiecesOfT
 
     def shuffle(finished: FieldType[K, H] :+: T): F[Pieces] = {
-      println(s" --------> k = ${witnessForK.value}")
+      debug(s"witnessForK.value = ${witnessForK.value}")
       finished match {
         case Inl(h) =>
           puzzleForH
@@ -100,7 +100,7 @@ trait PuzzleCoproductInstances extends PuzzleDefaultInstances {
       debug(s"puzzleForCCons[F[_], ...).assemble(${pieces}) / classTagForH=${classTagForH.runtimeClass.getSimpleName}")
       pieces match {
         case Inl(piecesOfH) =>
-          println(s"piecesOfH=${piecesOfH}")
+          debug(s"piecesOfH=${piecesOfH}")
           puzzleForH
             .assemble(piecesOfH)
             .map({ h =>

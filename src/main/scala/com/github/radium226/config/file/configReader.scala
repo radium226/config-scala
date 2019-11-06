@@ -24,7 +24,7 @@ trait ConfigReaderHListInstances {
     witnessForK: Witness.Aux[K],
   ): ConfigReader[FieldType[K, H] :: T] = {
     val keyName = witnessForK.value.name
-    println(s"I'm here for ${keyName}")
+    debug(s"I'm here for ${keyName}")
     for {
       head <- ConfigReader.fromCursor[H]({ cursor =>
         for {

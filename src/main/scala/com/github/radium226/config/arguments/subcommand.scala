@@ -52,7 +52,7 @@ trait MakeSubcommandCoproductInstances {
       Opts.subcommand[H](name, "No help! ")(opts)
     }
     val optsForT = makeSubcommandForT(configSource)
-    println(s"[makeSubcommandForCCons] configSource=${configSource.value().map(_.render(ConfigRenderOptions.concise()))}")
+    debug(s"[makeSubcommandForCCons] configSource=${configSource.value().map(_.render(ConfigRenderOptions.concise()))}")
     optsForH
       .map({ h => Inl[FieldType[K, H], T](field[K](h))})
       .orElse(
