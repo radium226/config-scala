@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 import cats.effect.Sync
 import com.google.common.base.CaseFormat
+import pureconfig.{ConfigObjectSource, ConfigSource}
 
 import scala.io.Source
 
@@ -13,7 +14,13 @@ trait Behaviors {
 
   def inferSubcommandName(runtimeClass: Class[_]): String
 
-  def readContent[F[_]](application: String, module: String, scope: Scope)(implicit F: Sync[F]): F[String]
+  def inferSubcommandName(symbol: Symbol): String
+
+  //def readContent[F[_]](application: String, module: String, scope: Scope)(implicit F: Sync[F]): F[String]
+
+  def configObjectSource(scope: Scope): ConfigObjectSource
+
+  def inferConfigNamespace(key: Symbol): String
 
 }
 
@@ -27,7 +34,15 @@ class DefaultBehaviors extends Behaviors {
     CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_HYPHEN, runtimeClass.getSimpleName.toLowerCase)
   }
 
-  def readContent[F[_]](application: String, module: String, scope: Scope)(implicit F: Sync[F]): F[String] = ???
+  def inferSubcommandName(symbol: Symbol): String = {
+    CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_HYPHEN, symbol.name)
+  }
+
+  override def inferConfigNamespace(key: Symbol): String = {
+    inferOptionName(key)
+  }
+
+  override def configObjectSource(scope: Scope): ConfigObjectSource = ConfigSource.empty
 
 }
 

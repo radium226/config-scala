@@ -5,23 +5,17 @@ import shapeless._
 import com.monovore.decline._
 
 import scala.reflect._
-
 import cats.implicits._
-
 import com.github.radium226.config.Behaviors
-
 import com.github.radium226.config.debug
+import com.typesafe.config.ConfigRenderOptions
+import pureconfig.ConfigSource
+import shapeless.labelled._
 
 
 trait MakeSubcommand[A] {
 
-  def apply(): Opts[A]
-
-  def instance[A](f: => Opts[A]): MakeSubcommand.Aux[A] = new MakeSubcommand[A] {
-
-    def apply() = f
-
-  }
+  def apply(configSource: ConfigSource): Opts[A]
 
 }
 
@@ -29,60 +23,62 @@ object MakeSubcommand {
 
   type Aux[A] = MakeSubcommand[A]
 
-  def instance[A](f: => Opts[A]): MakeSubcommand.Aux[A] = new MakeSubcommand[A] {
+  def instance[A](f: ConfigSource => Opts[A]): MakeSubcommand.Aux[A] = new MakeSubcommand[A] {
 
-    def apply(): Opts[A] = f
+    def apply(configSource: ConfigSource): Opts[A] = f(configSource)
 
   }
 
-  def constant[A](a: Opts[A]): MakeSubcommand.Aux[A] = MakeSubcommand.instance(a)
+  def constant[A](a: Opts[A]): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ _ => a })
 
 }
 
-trait MakeSubcommandLowPriorityInstances {
+trait MakeSubcommandCoproductInstances {
 
-  implicit def makeSubcommandForAny[A](implicit
-    makeOptionForA: Lazy[MakeOption[A]],
-    classTagForA: ClassTag[A],
-    behavior: Behaviors
-  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({
-    val name = behavior.inferSubcommandName(classTagForA.runtimeClass)
-    val opts = makeOptionForA.value()
-    Opts.subcommand[A](name, "No help! ")(opts)
-  })
+  implicit def makeSubcommandForCNil: MakeSubcommand.Aux[CNil] = MakeSubcommand.constant(Opts.never)
 
-}
-
-trait MakeSubcommandInstances extends MakeSubcommandLowPriorityInstances {
-
-  implicit def makeSubcommandForCNil[K <: Symbol]: MakeSubcommand.Aux[CNil] = MakeSubcommand.constant(Opts.never)
-
-  implicit def makeSubcommandForCCons[H, T <: Coproduct](implicit
-    makeSubcommandForH: MakeSubcommand.Aux[H],
+  implicit def makeSubcommandForCCons[K <: Symbol, H, T <: Coproduct](implicit
+    makeOptionForH: MakeOption.Aux[H],
     makeSubcommandForT: MakeSubcommand.Aux[T],
-    classTagForH: ClassTag[H]
-  ): MakeSubcommand.Aux[H :+: T] = MakeSubcommand.instance({
+    classTagForH: ClassTag[H],
+    witnessForK: Witness.Aux[K],
+    behavior: Behaviors,
+  ): MakeSubcommand.Aux[FieldType[K, H] :+: T] = MakeSubcommand.instance({ configSource =>
     debug(s"makeSubcommandForCCons[${classTagForH.runtimeClass.getSimpleName}, ...]")
-    val optsForH = makeSubcommandForH()
-    val optsForT = makeSubcommandForT()
-    optsForH.map(Coproduct(_)).orElse(optsForT.map(Coproduct(_)))
-      .map(_.asInstanceOf[H :+: T])
+    debug(s"k=${witnessForK.value}")
+    val optsForH = {
+      val name = behavior.inferSubcommandName(witnessForK.value)
+      val opts = makeOptionForH(configSource.at(behavior.inferConfigNamespace(witnessForK.value)))
+      Opts.subcommand[H](name, "No help! ")(opts)
+    }
+    val optsForT = makeSubcommandForT(configSource)
+    println(s"[makeSubcommandForCCons] configSource=${configSource.value().map(_.render(ConfigRenderOptions.concise()))}")
+    optsForH
+      .map({ h => Inl[FieldType[K, H], T](field[K](h))})
+      .orElse(
+        optsForT
+          .map({ t => Inr[FieldType[K, H], T](t) })
+      )
   })
 
   implicit def makeSubcommandForGeneric[A, ReprOfA <: Coproduct](implicit
-    generic: Generic.Aux[A, ReprOfA],
+    labelledGeneric: LabelledGeneric.Aux[A, ReprOfA],
     makeSubcommandForReprOfA: MakeSubcommand[ReprOfA],
     classTagForA: ClassTag[A]
-  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({
+  ): MakeSubcommand.Aux[A] = MakeSubcommand.instance({ configSource =>
     debug(s"makeSubcommandForGeneric[${classTagForA.runtimeClass.getSimpleName}, ...]")
-    makeSubcommandForReprOfA()
-        .map(generic.from(_))
+    makeSubcommandForReprOfA(configSource)
+     .map(labelledGeneric.from(_))
   })
 
 }
 
+trait MakeSubcommandInstances extends MakeSubcommandCoproductInstances
+
 trait MakeSubcommandSyntax {
 
-  def makeSubcommand[A](implicit makeSubcommandForA: MakeSubcommand.Aux[A]): Opts[A] = makeSubcommandForA()
+  def makeSubcommand[A](configSource: ConfigSource)(implicit makeSubcommandForA: MakeSubcommand.Aux[A]): Opts[A] = makeSubcommandForA(configSource)
+
+  def makeSubcommand[A](implicit makeSubcommandForA: MakeSubcommand.Aux[A]): Opts[A] = makeSubcommand(ConfigSource.empty)
 
 }

@@ -1,12 +1,12 @@
 package com.github.radium226.config.file
 
 import com.google.common.base.CaseFormat
-import pureconfig.{ConfigReader, Derivation}
+import pureconfig.{ConfigReader, Derivation, error}
 import shapeless._
 import shapeless.labelled._
 import cats.implicits._
 import com.github.radium226.config.{Behaviors, Piece}
-import pureconfig.error.{ConfigReaderFailure, ConfigReaderFailures, ConfigValueLocation}
+import pureconfig.error.{ConfigReaderFailure, ConfigReaderFailures, ConfigValueLocation, ThrowableFailure}
 
 import scala.reflect.ClassTag
 import com.github.radium226.config.debug
