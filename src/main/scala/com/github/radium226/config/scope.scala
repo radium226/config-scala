@@ -1,5 +1,7 @@
 package com.github.radium226.config
 
+import java.nio.file.{Path, Paths}
+
 import enumeratum._
 
 sealed trait Scope extends EnumEntry

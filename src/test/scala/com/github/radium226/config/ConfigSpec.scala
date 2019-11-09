@@ -9,7 +9,7 @@ class ConfigSpec extends AbstractSpec {
 
   implicit def configBehaviors: Behaviors = new DefaultBehaviors {
 
-    override def configObjectSource(scope: Scope) = {
+    override def configObjectSource(application: Application, scope: Scope) = {
       ConfigSource.string(scope match {
         case System =>
           """min-size: 2
@@ -31,6 +31,7 @@ class ConfigSpec extends AbstractSpec {
 
   }
 
+  @application("test")
   case class SimpleSettings(minSize: Int, maxSize: Int, avgSize: Int, absSize: Int)
 
   it should "be able to parse simple settings" in {
@@ -43,6 +44,7 @@ class ConfigSpec extends AbstractSpec {
   case class Create() extends Action
   case class Delete(id: Int) extends Action
 
+  @application("test")
   case class SettingsWithAction(dryRun: Boolean, force: Option[Int], action: Action)
 
   it should "be able to parse settings with action" in {

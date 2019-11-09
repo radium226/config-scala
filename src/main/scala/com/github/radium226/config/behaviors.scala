@@ -1,10 +1,12 @@
 package com.github.radium226.config
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 import cats.effect.Sync
 import com.google.common.base.CaseFormat
 import pureconfig.{ConfigObjectSource, ConfigSource}
+
+import java.lang.{ System => JavaSystem }
 
 import scala.io.Source
 
@@ -18,7 +20,10 @@ trait Behaviors {
 
   //def readContent[F[_]](application: String, module: String, scope: Scope)(implicit F: Sync[F]): F[String]
 
-  def configObjectSource(scope: Scope): ConfigObjectSource
+  def configObjectSource(
+    application: Application,
+    scope: Scope
+  ): ConfigObjectSource
 
   def inferConfigNamespace(key: Symbol): String
 
@@ -42,7 +47,22 @@ class DefaultBehaviors extends Behaviors {
     inferOptionName(key)
   }
 
-  override def configObjectSource(scope: Scope): ConfigObjectSource = ConfigSource.empty
+  override def configObjectSource(
+    application: Application,
+    scope: Scope
+  ): ConfigObjectSource = {
+    import Scope._
+    ConfigSource.file(scope match {
+      case Current =>
+        Paths.get(".").resolve(s"${application}.conf")
+
+      case User =>
+        Paths.get(JavaSystem.getProperty("user.home")).resolve(".config").resolve(s"${application}.conf")
+
+      case System =>
+        Paths.get(s"/etc").resolve(s"${application}.conf")
+    })
+  }
 
 }
 

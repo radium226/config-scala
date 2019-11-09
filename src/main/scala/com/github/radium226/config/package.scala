@@ -6,6 +6,10 @@ package object config extends AllInstances {
 
   type Piece[A] = Option[A]
 
+  type Application = String
+
+  type Module = String
+
   object Piece {
 
     def apply[A](a: A): Piece[A] = Some(a)

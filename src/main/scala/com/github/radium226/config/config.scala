@@ -26,11 +26,14 @@ trait ConfigInstances {
     // PiecesOfA
     puzzleForA: Puzzle.Aux[F, A, PiecesOfA],
     PiecesOfA: Monoid[PiecesOfA],
-    arguments: Arguments[F, PiecesOfA]
+    arguments: Arguments[F, PiecesOfA],
+    lookUpContext: LookUpContext[A]
+
   ): Config[F, A] = new Config[F, A] {
 
     def parse(parameters: String*): F[A] = {
-      val configObjectSource = Scope.values.map(behaviors.configObjectSource(_)).reduce(_.withFallback(_))
+      val context = lookUpContext()
+      val configObjectSource = Scope.values.map(behaviors.configObjectSource(context.application, _)).reduce(_.withFallback(_))
       for {
         piecesOfAFromArguments <- arguments.parse(configObjectSource, parameters: _*)
         piecesOfA               = PiecesOfA.empty.combine(piecesOfAFromArguments)
