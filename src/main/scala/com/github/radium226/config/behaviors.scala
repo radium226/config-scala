@@ -54,20 +54,26 @@ class DefaultBehaviors extends Behaviors {
     import Scope._
     ConfigSource.file(scope match {
       case Current =>
-        Paths.get(".").resolve(s"${application}.conf")
+        val configFilePath = Paths.get(".").resolve(s"${application}.conf")
+        debug(s"configFilePath (Current)=${configFilePath}")
+        configFilePath
 
       case User =>
-        Paths.get(JavaSystem.getProperty("user.home")).resolve(".config").resolve(s"${application}.conf")
+        val configFilePath = Paths.get(JavaSystem.getProperty("user.home")).resolve(".config").resolve(s"${application}.conf")
+        debug(s"configFilePath (User)=${configFilePath}")
+        configFilePath
 
       case System =>
-        Paths.get(s"/etc").resolve(s"${application}.conf")
-    })
+        val configFilePath = Paths.get(s"/etc").resolve(s"${application}.conf")
+        debug(s"configFilePath (System)=${configFilePath}")
+        configFilePath
+    }).recoverWith({ case _ => ConfigSource.empty })
   }
 
 }
 
-trait BehaviorsInstances {
+object Behaviors {
 
-  implicit def behaviorsForAny: Behaviors = new DefaultBehaviors
+  implicit def default: Behaviors = new DefaultBehaviors
 
 }

@@ -34,6 +34,7 @@ trait ConfigInstances {
     def parse(parameters: String*): F[A] = {
       val context = lookUpContext()
       val configObjectSource = Scope.values.map(behaviors.configObjectSource(context.application, _)).reduce(_.withFallback(_))
+      println(configObjectSource.value())
       for {
         piecesOfAFromArguments <- arguments.parse(configObjectSource, parameters: _*)
         piecesOfA               = PiecesOfA.empty.combine(piecesOfAFromArguments)
